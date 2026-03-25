@@ -1,0 +1,30 @@
+"""Application package entry point and factory setup."""
+
+from flask import Flask
+
+from app.api import register_blueprints
+from app.config import config_by_name
+from app.core.errors import register_error_handlers
+from app.extensions import init_extensions
+
+
+def create_app(config_name: str | None = None) -> Flask:
+    """Create and configure the Flask application instance."""
+    app = Flask(__name__)
+
+    # Load environment-based configuration.
+    selected_config = (config_name or "development").lower()
+    if selected_config not in config_by_name:
+        raise ValueError(f"Unknown config '{selected_config}'. Use development or production.")
+    app.config.from_object(config_by_name[selected_config])
+
+    # Initialize extension placeholders (e.g., database) with app context.
+    init_extensions(app)
+
+    # Register API blueprints.
+    register_blueprints(app)
+
+    # Register centralized error handlers.
+    register_error_handlers(app)
+
+    return app
