@@ -1,17 +1,30 @@
-"""Data model placeholders for URL shortening domain entities."""
+from app.extensions import db
 
 
-class URLMapping:
-    """Placeholder entity for a shortened URL mapping."""
+class URLMapping(db.Model):
+    __tablename__ = "url_mappings"
 
-    def __init__(self, original_url=None, short_code=None):
-        self.original_url = original_url
-        self.short_code = short_code
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.Text, nullable=False)
+    short_code = db.Column(db.String(8), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=db.func.now(),
+        onupdate=db.func.now(),
+    )
+    access_count = db.Column(db.Integer, nullable=False, default=0)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "url": self.url,
+            "shortCode": self.short_code,
+            "createdAt": self.created_at.isoformat() + "Z",
+            "updatedAt": self.updated_at.isoformat() + "Z",
+            "accessCount": self.access_count,
+        }
 
-class URLStats:
-    """Placeholder entity for shortened URL statistics."""
-
-    def __init__(self, short_code=None, access_count=0):
-        self.short_code = short_code
-        self.access_count = access_count
+    def increment_access(self):
+        self.access_count += 1
