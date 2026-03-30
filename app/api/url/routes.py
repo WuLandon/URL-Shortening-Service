@@ -1,18 +1,15 @@
-"""Route handlers for URL shortening endpoints."""
-
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, jsonify, request
 
 from app.api.url import controller
 
-# Feature blueprint for URL shortening endpoints.
 url_bp = Blueprint("url", __name__, url_prefix="/shorten")
 
 
 @url_bp.route("", methods=["POST"])
 def shorten_url():
-    """Create a new shortened URL (stub)."""
-    controller.create_short_url(request.get_json(silent=True) or {})
-    return Response(status=501)
+    """Create a new shortened URL."""
+    created_url = controller.create_short_url(request.get_json(silent=True) or {})
+    return jsonify(created_url), 201
 
 
 @url_bp.route("/<string:short_code>", methods=["GET"])
