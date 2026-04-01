@@ -1,6 +1,7 @@
 """Centralized custom error definitions and Flask error handlers."""
 
 from flask import jsonify
+from werkzeug.exceptions import BadRequest
 
 
 class AppError(Exception):
@@ -33,6 +34,10 @@ def register_error_handlers(app):
     @app.errorhandler(AppError)
     def handle_app_error(error):
         return jsonify({"error": error.message}), error.status_code
+
+    @app.errorhandler(BadRequest)
+    def handle_bad_request(_error):
+        return jsonify({"error": "Invalid JSON payload"}), 400
 
     @app.errorhandler(404)
     def handle_404(_error):

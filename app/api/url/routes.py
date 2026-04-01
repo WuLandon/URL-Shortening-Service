@@ -8,7 +8,8 @@ url_bp = Blueprint("url", __name__, url_prefix="/shorten")
 @url_bp.route("", methods=["POST"])
 def shorten_url():
     """Create a new shortened URL."""
-    created_url = controller.create_short_url(request.get_json(silent=True) or {})
+    payload = request.get_json(silent=False)
+    created_url = controller.create_short_url(payload)
     return jsonify(created_url), 201
 
 
