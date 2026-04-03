@@ -16,9 +16,7 @@ ENV/
 
 # Flask instance and local DB files
 instance/
-*.db
-*.sqlite
-*.sqlite3
+dump.rdb
 
 # Packaging / build artifacts
 build/
