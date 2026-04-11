@@ -1,3 +1,5 @@
+from typing import Optional
+
 from flask import Flask
 
 from app.api import register_blueprints
@@ -6,7 +8,7 @@ from app.core.errors import register_error_handlers
 from app.extensions import init_extensions
 
 
-def create_app(config_name: str | None = None) -> Flask:
+def create_app(config_name: Optional[str] = None) -> Flask:
     """Create and configure the Flask application instance."""
     app = Flask(__name__)
 

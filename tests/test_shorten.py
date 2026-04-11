@@ -1,0 +1,92 @@
+import pytest
+
+
+@pytest.fixture
+def app(monkeypatch):
+    # Ensure required config exists before app import/app factory execution.
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+
+    from app import create_app
+
+    flask_app = create_app("development")
+    flask_app.config.update(TESTING=True)
+    return flask_app
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture
+def stub_create_short_url(monkeypatch):
+    class _CreatedMapping:
+        def to_dict(self):
+            return {
+                "id": 1,
+                "url": "https://example.com",
+                "shortCode": "b",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "updatedAt": "2026-01-01T00:00:00Z",
+                "accessCount": 0,
+            }
+
+    def _fake_create_short_url(url):
+        assert isinstance(url, str)
+        return _CreatedMapping()
+
+    monkeypatch.setattr(
+        "app.api.url.service.create_short_url",
+        _fake_create_short_url,
+    )
+
+
+def test_post_shorten_valid_url_returns_201(client, stub_create_short_url):
+    response = client.post("/api/v1/shorten", json={"url": "https://example.com"})
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body is not None
+    assert body["url"] == "https://example.com"
+    assert "id" in body
+    assert "shortCode" in body
+    assert "createdAt" in body
+    assert "updatedAt" in body
+    assert "accessCount" in body
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"url": ""},
+        {"url": "   "},
+        {"url": 123},
+        {"url": "not-a-valid-url"},
+    ],
+)
+def test_post_shorten_invalid_payload_returns_400(
+    client, payload, stub_create_short_url
+):
+    response = client.post("/api/v1/shorten", json=payload)
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "error" in body
+    assert isinstance(body["error"], str)
+    assert body["error"]
+
+
+def test_post_shorten_invalid_json_returns_400(client, stub_create_short_url):
+    response = client.post(
+        "/api/v1/shorten",
+        data='{"url": "https://example.com"',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert body["error"] == "Invalid JSON payload"
