@@ -2,26 +2,8 @@ import pytest
 
 
 @pytest.fixture
-def app(monkeypatch):
-    # Ensure required config exists before app import/app factory execution.
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
-    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
-
-    from app import create_app
-
-    flask_app = create_app("development")
-    flask_app.config.update(TESTING=True)
-    return flask_app
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
 def stub_create_short_url(monkeypatch):
-    class _CreatedMapping:
+    class _MockUrlMapping:
         def to_dict(self):
             return {
                 "id": 1,
@@ -34,7 +16,7 @@ def stub_create_short_url(monkeypatch):
 
     def _fake_create_short_url(url):
         assert isinstance(url, str)
-        return _CreatedMapping()
+        return _MockUrlMapping()
 
     monkeypatch.setattr(
         "app.api.url.service.create_short_url",
@@ -42,7 +24,7 @@ def stub_create_short_url(monkeypatch):
     )
 
 
-def test_post_shorten_valid_url_returns_201(client, stub_create_short_url):
+def test_post_shorten_success(client, stub_create_short_url):
     # A valid URL payload should return 201 with resource fields.
     response = client.post("/api/v1/shorten", json={"url": "https://example.com"})
 
@@ -67,9 +49,7 @@ def test_post_shorten_valid_url_returns_201(client, stub_create_short_url):
         {"url": "not-a-valid-url"},
     ],
 )
-def test_post_shorten_invalid_payload_returns_400(
-    client, payload, stub_create_short_url
-):
+def test_post_shorten_invalid_payload(client, payload, stub_create_short_url):
     # Missing/empty/invalid url values should return a validation error.
     response = client.post("/api/v1/shorten", json=payload)
 
@@ -81,7 +61,7 @@ def test_post_shorten_invalid_payload_returns_400(
     assert body["error"]
 
 
-def test_post_shorten_invalid_json_returns_400(client, stub_create_short_url):
+def test_post_shorten_invalid_json(client, stub_create_short_url):
     # Malformed JSON syntax should be handled as a 400 Bad Request.
     response = client.post(
         "/api/v1/shorten",
