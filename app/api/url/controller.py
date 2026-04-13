@@ -12,7 +12,8 @@ def create_short_url(payload):
 
 def get_short_url(short_code):
     """Handle retrieval flow for a shortened URL record."""
-    return None
+    url_mapping = service.get_short_url(short_code)
+    return url_mapping.to_dict()
 
 
 def update_short_url(short_code, payload):

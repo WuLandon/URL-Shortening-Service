@@ -15,9 +15,9 @@ def shorten_url():
 
 @url_bp.route("/<string:short_code>", methods=["GET"])
 def get_shortened_url(short_code):
-    """Retrieve details for a specific short code (stub)."""
-    controller.get_short_url(short_code)
-    return Response(status=501)
+    """Retrieve details for a specific short code."""
+    url_details = controller.get_short_url(short_code)
+    return jsonify(url_details), 200
 
 
 @url_bp.route("/<string:short_code>", methods=["PUT"])

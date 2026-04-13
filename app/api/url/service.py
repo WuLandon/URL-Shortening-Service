@@ -1,6 +1,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.url.model import URLMapping
+from app.core.errors import NotFoundError
 from app.core.utils import encode_base62
 from app.extensions import db, redis_client
 
@@ -26,20 +27,23 @@ def create_short_url(url):
 
 
 def get_short_url(short_code):
-    """Fetch a shortened URL entity (business logic placeholder)."""
-    return None
+    """Fetch a shortened URL entity."""
+    url_mapping = URLMapping.query.filter_by(short_code=short_code).first()
+    if url_mapping is None:
+        raise NotFoundError(f"Short code '{short_code}' was not found.")
+    return url_mapping
 
 
 def update_short_url(short_code, payload):
-    """Update a shortened URL entity (business logic placeholder)."""
+    """Update a shortened URL entity."""
     return None
 
 
 def delete_short_url(short_code):
-    """Delete a shortened URL entity (business logic placeholder)."""
+    """Delete a shortened URL entity."""
     return None
 
 
 def get_short_url_stats(short_code):
-    """Fetch statistics for a shortened URL (business logic placeholder)."""
+    """Fetch statistics for a shortened URL."""
     return None
