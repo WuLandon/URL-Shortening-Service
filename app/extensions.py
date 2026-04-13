@@ -1,6 +1,6 @@
-from redis import Redis
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from redis import Redis
 
 
 class RedisClient:
