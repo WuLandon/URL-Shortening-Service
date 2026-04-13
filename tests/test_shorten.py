@@ -43,6 +43,7 @@ def stub_create_short_url(monkeypatch):
 
 
 def test_post_shorten_valid_url_returns_201(client, stub_create_short_url):
+    # A valid URL payload should return 201 with resource fields.
     response = client.post("/api/v1/shorten", json={"url": "https://example.com"})
 
     assert response.status_code == 201
@@ -69,6 +70,7 @@ def test_post_shorten_valid_url_returns_201(client, stub_create_short_url):
 def test_post_shorten_invalid_payload_returns_400(
     client, payload, stub_create_short_url
 ):
+    # Missing/empty/invalid url values should return a validation error.
     response = client.post("/api/v1/shorten", json=payload)
 
     assert response.status_code == 400
@@ -80,6 +82,7 @@ def test_post_shorten_invalid_payload_returns_400(
 
 
 def test_post_shorten_invalid_json_returns_400(client, stub_create_short_url):
+    # Malformed JSON syntax should be handled as a 400 Bad Request.
     response = client.post(
         "/api/v1/shorten",
         data='{"url": "https://example.com"',
