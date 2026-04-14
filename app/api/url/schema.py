@@ -3,8 +3,8 @@ from urllib.parse import urlparse
 from app.core.errors import ValidationError
 
 
-def validate_create_payload(payload):
-    """Validate create-short-url payload and return normalized data."""
+def validate_payload(payload):
+    """Validate url field from payload"""
     if not isinstance(payload, dict):
         raise ValidationError("Invalid payload. Expected a JSON object.")
 
@@ -21,8 +21,3 @@ def validate_create_payload(payload):
         raise ValidationError("Field 'url' must be a valid HTTP/HTTPS URL.")
 
     return {"url": url}
-
-
-def validate_update_payload(payload):
-    """Placeholder validator for update-short-url request payload."""
-    return payload

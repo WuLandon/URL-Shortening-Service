@@ -2,21 +2,10 @@ import pytest
 
 
 @pytest.fixture
-def stub_create_short_url(monkeypatch):
-    class _MockUrlMapping:
-        def to_dict(self):
-            return {
-                "id": 1,
-                "url": "https://example.com",
-                "shortCode": "b",
-                "createdAt": "2026-01-01T00:00:00Z",
-                "updatedAt": "2026-01-01T00:00:00Z",
-                "accessCount": 0,
-            }
-
+def stub_create_short_url(monkeypatch, make_mock_url_mapping):
     def _fake_create_short_url(url):
         assert isinstance(url, str)
-        return _MockUrlMapping()
+        return make_mock_url_mapping(shortCode="b")
 
     monkeypatch.setattr(
         "app.api.url.service.create_short_url",
@@ -25,7 +14,6 @@ def stub_create_short_url(monkeypatch):
 
 
 def test_post_shorten_success(client, stub_create_short_url):
-    # A valid URL payload should return 201 with resource fields.
     response = client.post("/api/v1/shorten", json={"url": "https://example.com"})
 
     assert response.status_code == 201
@@ -50,7 +38,6 @@ def test_post_shorten_success(client, stub_create_short_url):
     ],
 )
 def test_post_shorten_invalid_payload(client, payload, stub_create_short_url):
-    # Missing/empty/invalid url values should return a validation error.
     response = client.post("/api/v1/shorten", json=payload)
 
     assert response.status_code == 400
@@ -62,7 +49,6 @@ def test_post_shorten_invalid_payload(client, payload, stub_create_short_url):
 
 
 def test_post_shorten_invalid_json(client, stub_create_short_url):
-    # Malformed JSON syntax should be handled as a 400 Bad Request.
     response = client.post(
         "/api/v1/shorten",
         data='{"url": "https://example.com"',

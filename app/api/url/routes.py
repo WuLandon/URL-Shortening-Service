@@ -22,9 +22,10 @@ def get_shortened_url(short_code):
 
 @url_bp.route("/<string:short_code>", methods=["PUT"])
 def update_shortened_url(short_code):
-    """Update an existing shortened URL (stub)."""
-    controller.update_short_url(short_code, request.get_json(silent=True) or {})
-    return Response(status=501)
+    """Update an existing shortened URL."""
+    payload = request.get_json(silent=False)
+    updated_url = controller.update_short_url(short_code, payload)
+    return jsonify(updated_url), 200
 
 
 @url_bp.route("/<string:short_code>", methods=["DELETE"])

@@ -35,8 +35,18 @@ def get_short_url(short_code):
 
 
 def update_short_url(short_code, payload):
-    """Update a shortened URL entity."""
-    return None
+    """Update the destination URL for an existing short link."""
+    url_mapping = get_short_url(short_code)
+
+    url_mapping.url = payload["url"]
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        raise
+
+    return url_mapping
 
 
 def delete_short_url(short_code):
