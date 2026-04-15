@@ -23,3 +23,8 @@ def update_short_url(short_code, payload):
 def delete_short_url(short_code):
     """Handle deletion flow for a shortened URL."""
     service.delete_short_url(short_code)
+
+
+def redirect_short_url(short_code):
+    """Handle redirect flow for a short URL."""
+    return service.get_redirect_url(short_code)

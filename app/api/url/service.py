@@ -61,3 +61,17 @@ def delete_short_url(short_code):
         raise
 
     return None
+
+
+def get_redirect_url(short_code):
+    """Fetch original URL for redirect and increment access count."""
+    url_mapping = get_short_url(short_code)
+    url_mapping.increment_access()
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        raise
+
+    return url_mapping.url

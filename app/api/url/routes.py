@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, redirect, request
 
 from app.api.url import controller
 
@@ -33,3 +33,10 @@ def delete_shortened_url(short_code):
     """Delete an existing shortened URL."""
     controller.delete_short_url(short_code)
     return Response(status=204)
+
+
+@url_bp.route("/<string:short_code>/redirect", methods=["GET"])
+def redirect_shortened_url(short_code):
+    """Redirect to the original URL for a specific short code."""
+    target_url = controller.redirect_short_url(short_code)
+    return redirect(target_url)
