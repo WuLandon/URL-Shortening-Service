@@ -65,4 +65,4 @@ def delete_short_url(short_code):
 
 def get_short_url_stats(short_code):
     """Fetch statistics for a shortened URL."""
-    return None
+    return get_short_url(short_code).to_dict()

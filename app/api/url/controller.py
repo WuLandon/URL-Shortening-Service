@@ -27,4 +27,4 @@ def delete_short_url(short_code):
 
 def get_short_url_stats(short_code):
     """Handle retrieval flow for shortened URL analytics."""
-    return None
+    return service.get_short_url_stats(short_code)
