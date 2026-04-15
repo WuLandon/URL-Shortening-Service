@@ -33,10 +33,3 @@ def delete_shortened_url(short_code):
     """Delete an existing shortened URL."""
     controller.delete_short_url(short_code)
     return Response(status=204)
-
-
-@url_bp.route("/<string:short_code>/stats", methods=["GET"])
-def get_shortened_url_stats(short_code):
-    """Retrieve usage stats for a specific short code."""
-    stats = controller.get_short_url_stats(short_code)
-    return jsonify(stats), 200
