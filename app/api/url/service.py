@@ -51,6 +51,15 @@ def update_short_url(short_code, payload):
 
 def delete_short_url(short_code):
     """Delete a shortened URL entity."""
+    url_mapping = get_short_url(short_code)
+
+    try:
+        db.session.delete(url_mapping)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        raise
+
     return None
 
 

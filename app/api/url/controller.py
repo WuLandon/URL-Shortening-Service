@@ -22,7 +22,7 @@ def update_short_url(short_code, payload):
 
 def delete_short_url(short_code):
     """Handle deletion flow for a shortened URL."""
-    return None
+    service.delete_short_url(short_code)
 
 
 def get_short_url_stats(short_code):

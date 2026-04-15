@@ -30,9 +30,9 @@ def update_shortened_url(short_code):
 
 @url_bp.route("/<string:short_code>", methods=["DELETE"])
 def delete_shortened_url(short_code):
-    """Delete an existing shortened URL (stub)."""
+    """Delete an existing shortened URL."""
     controller.delete_short_url(short_code)
-    return Response(status=501)
+    return Response(status=204)
 
 
 @url_bp.route("/<string:short_code>/stats", methods=["GET"])
