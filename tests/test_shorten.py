@@ -135,3 +135,15 @@ def test_post_shorten_duplicate_alias_returns_409(client, monkeypatch):
     body = response.get_json()
     assert body is not None
     assert "error" in body
+
+
+def test_post_shorten_alias_too_long_returns_400(client, stub_create_short_url):
+    response = client.post(
+        "/api/v1/shorten",
+        json={"url": "https://example.com", "alias": "a" * 17},
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert body["error"] == "Field 'alias' must be at most 16 characters."

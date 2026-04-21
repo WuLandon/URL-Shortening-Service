@@ -1,30 +1,29 @@
-from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-# TODO: Do I need separate constants.py file for SHORT_CODE_PREFIX?
-from app.api.url.constants import SHORT_CODE_PREFIX
+from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX
 from app.api.url.model import URLMapping
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.utils import encode_base62
 from app.extensions import db, redis_client
 
 
-def _is_alias_taken(alias):
-    """Check whether alias already exists (case-insensitive)."""
-    return (
-        URLMapping.query.filter(
-            func.lower(URLMapping.short_code) == alias.lower()
-        ).first()
-        is not None
-    )
+def _ensure_alias_unique(alias, current_id=None):
+    """Alias must be unique, except for the record currently being updated."""
+    existing = URLMapping.query.filter(
+        func.lower(URLMapping.short_code) == alias.lower()
+    ).first()
+
+    if existing is not None and existing.id != current_id:
+        raise ConflictError(f"This alias '{alias}' already exists.")
 
 
-def _is_reserved_alias(alias):
-    """Check whether alias conflicts with reserved keywords."""
-    reserved_aliases = current_app.config.get("RESERVED_ALIASES", ())
-    reserved_aliases_set = {value.lower() for value in reserved_aliases}
-    return alias.lower() in reserved_aliases_set
+def _ensure_alias_not_reserved(alias):
+    """Raise if alias conflicts with reserved keywords."""
+    if alias.lower() in RESERVED_ALIASES:
+        raise ValidationError(
+            f"'{alias}' is a reserved keyword and cannot be used as an alias."
+        )
 
 
 def _generate_short_code():
@@ -40,14 +39,8 @@ def create_short_url(url, alias=None):
         raise RuntimeError("Redis client is not configured.")
 
     if alias is not None:
-        if alias.startswith(SHORT_CODE_PREFIX):
-            raise ValidationError(f"Alias cannot start with '{SHORT_CODE_PREFIX}'.")
-        if _is_reserved_alias(alias):
-            raise ValidationError(
-                f"'{alias}' is a reserved keyword and cannot be used as an alias."
-            )
-        if _is_alias_taken(alias):
-            raise ConflictError(f"This alias '{alias}' already exists.")
+        _ensure_alias_not_reserved(alias)
+        _ensure_alias_unique(alias)
         short_code = alias
     else:
         short_code = _generate_short_code()
@@ -73,10 +66,17 @@ def get_short_url(short_code):
 
 
 def update_short_url(short_code, payload):
-    """Update the destination URL for an existing short link."""
+    """Update the destination URL and/or alias for an existing short link."""
     url_mapping = get_short_url(short_code)
 
-    url_mapping.url = payload["url"]
+    if "url" in payload:
+        url_mapping.url = payload["url"]
+
+    if "alias" in payload:
+        alias = payload["alias"]
+        _ensure_alias_not_reserved(alias)
+        _ensure_alias_unique(alias, current_id=url_mapping.id)
+        url_mapping.short_code = alias
 
     try:
         db.session.commit()

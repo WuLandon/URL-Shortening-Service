@@ -1,5 +1,3 @@
-"""Centralized custom error definitions and Flask error handlers."""
-
 from flask import jsonify
 from werkzeug.exceptions import BadRequest
 

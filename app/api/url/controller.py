@@ -1,9 +1,9 @@
 from app.api.url import service
-from app.api.url.schema import validate_payload
+from app.api.url.schema import validate_create_payload, validate_update_payload
 
 
 def create_short_url(payload):
-    validated_payload = validate_payload(payload)
+    validated_payload = validate_create_payload(payload)
 
     created_mapping = service.create_short_url(
         validated_payload["url"],
@@ -18,7 +18,7 @@ def get_short_url(short_code):
 
 
 def update_short_url(short_code, payload):
-    validated_payload = validate_payload(payload)
+    validated_payload = validate_update_payload(payload)
     updated_mapping = service.update_short_url(short_code, validated_payload)
     return updated_mapping.to_dict()
 
