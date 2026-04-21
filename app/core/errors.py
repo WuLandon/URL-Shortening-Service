@@ -28,6 +28,12 @@ class ValidationError(AppError):
     status_code = 400
 
 
+class ConflictError(AppError):
+    """Raised when a requested operation conflicts with existing data."""
+
+    status_code = 409
+
+
 def register_error_handlers(app):
     """Register global Flask error handlers for API responses."""
 

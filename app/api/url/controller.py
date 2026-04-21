@@ -5,7 +5,10 @@ from app.api.url.schema import validate_payload
 def create_short_url(payload):
     validated_payload = validate_payload(payload)
 
-    created_mapping = service.create_short_url(validated_payload["url"])
+    created_mapping = service.create_short_url(
+        validated_payload["url"],
+        validated_payload.get("alias"),
+    )
     return created_mapping.to_dict()
 
 

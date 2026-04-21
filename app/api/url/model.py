@@ -6,6 +6,7 @@ class URLMapping(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     url = db.Column(db.Text, nullable=False)
+    # TODO: index on short_code?
     short_code = db.Column(db.String(8), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     updated_at = db.Column(
