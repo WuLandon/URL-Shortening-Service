@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, redirect, request
 
 from app.api.url import controller
 
@@ -22,20 +22,21 @@ def get_shortened_url(short_code):
 
 @url_bp.route("/<string:short_code>", methods=["PUT"])
 def update_shortened_url(short_code):
-    """Update an existing shortened URL (stub)."""
-    controller.update_short_url(short_code, request.get_json(silent=True) or {})
-    return Response(status=501)
+    """Update an existing shortened URL."""
+    payload = request.get_json(silent=False)
+    updated_url = controller.update_short_url(short_code, payload)
+    return jsonify(updated_url), 200
 
 
 @url_bp.route("/<string:short_code>", methods=["DELETE"])
 def delete_shortened_url(short_code):
-    """Delete an existing shortened URL (stub)."""
+    """Delete an existing shortened URL."""
     controller.delete_short_url(short_code)
-    return Response(status=501)
+    return Response(status=204)
 
 
-@url_bp.route("/<string:short_code>/stats", methods=["GET"])
-def get_shortened_url_stats(short_code):
-    """Retrieve usage stats for a specific short code (stub)."""
-    controller.get_short_url_stats(short_code)
-    return Response(status=501)
+@url_bp.route("/<string:short_code>/redirect", methods=["GET"])
+def redirect_shortened_url(short_code):
+    """Redirect to the original URL for a specific short code."""
+    target_url = controller.redirect_short_url(short_code)
+    return redirect(target_url)

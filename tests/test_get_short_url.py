@@ -1,18 +1,7 @@
-def test_get_shorten_success(client, monkeypatch):
-    class _MockUrlMapping:
-        def to_dict(self):
-            return {
-                "id": 1,
-                "url": "https://example.com",
-                "shortCode": "abc123",
-                "createdAt": "2026-01-01T00:00:00Z",
-                "updatedAt": "2026-01-01T00:00:00Z",
-                "accessCount": 0,
-            }
-
+def test_get_shorten_success(client, monkeypatch, make_mock_url_mapping):
     monkeypatch.setattr(
         "app.api.url.service.get_short_url",
-        lambda short_code: _MockUrlMapping(),
+        lambda short_code: make_mock_url_mapping(shortCode="abc123"),
     )
 
     response = client.get("/api/v1/shorten/abc123")

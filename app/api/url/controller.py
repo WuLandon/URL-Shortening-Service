@@ -1,31 +1,33 @@
 from app.api.url import service
-from app.api.url.schema import validate_create_payload
+from app.api.url.schema import validate_create_payload, validate_update_payload
 
 
 def create_short_url(payload):
-    """Handle request data for creating a shortened URL."""
     validated_payload = validate_create_payload(payload)
 
-    created_mapping = service.create_short_url(validated_payload["url"])
+    created_mapping = service.create_short_url(
+        validated_payload["url"],
+        validated_payload.get("alias"),
+    )
     return created_mapping.to_dict()
 
 
 def get_short_url(short_code):
-    """Handle retrieval flow for a shortened URL record."""
     url_mapping = service.get_short_url(short_code)
     return url_mapping.to_dict()
 
 
 def update_short_url(short_code, payload):
-    """Handle update flow for an existing shortened URL."""
-    return None
+    validated_payload = validate_update_payload(payload)
+    updated_mapping = service.update_short_url(short_code, validated_payload)
+    return updated_mapping.to_dict()
 
 
 def delete_short_url(short_code):
     """Handle deletion flow for a shortened URL."""
-    return None
+    service.delete_short_url(short_code)
 
 
-def get_short_url_stats(short_code):
-    """Handle retrieval flow for shortened URL analytics."""
-    return None
+def redirect_short_url(short_code):
+    """Handle redirect flow for a short URL."""
+    return service.get_redirect_url(short_code)
