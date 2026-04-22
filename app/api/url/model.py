@@ -28,6 +28,3 @@ class URLMapping(db.Model):
             "updatedAt": self.updated_at.isoformat() + "Z",
             "accessCount": self.access_count,
         }
-
-    def increment_access(self):
-        self.access_count += 1
