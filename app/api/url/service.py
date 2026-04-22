@@ -1,5 +1,5 @@
 from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX
 from app.api.url.model import URLMapping
@@ -50,6 +50,9 @@ def create_short_url(url, alias=None):
     try:
         db.session.add(url_mapping)
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise ConflictError(f"This alias '{short_code}' already exists.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
@@ -80,6 +83,10 @@ def update_short_url(short_code, payload):
 
     try:
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        conflicting_alias = payload.get("alias", url_mapping.short_code)
+        raise ConflictError(f"This alias '{conflicting_alias}' already exists.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
