@@ -21,10 +21,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     init_extensions(app)
 
-    # Register API blueprints.
     register_blueprints(app)
 
-    # Register centralized error handlers.
     register_error_handlers(app)
 
     return app
