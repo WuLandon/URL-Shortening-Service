@@ -1,81 +1,208 @@
-# URL Shortening Service API Scaffold
+# URL Shortening Service
 
-Production-ready Flask scaffold for a URL Shortening Service API using a layered architecture and blueprint-based routing.
+A RESTful API for creating, managing, and resolving shortened URLs.
+Built with Flask, PostgreSQL, and Redis, the service focuses on correctness, validation, and consistency under concurrent access.
 
-## Current Scope
+## Overview
 
-This repository currently includes only project structure and placeholders:
-- App factory with environment-based config loading
-- Blueprint registration and endpoint stubs
-- Controller/service/model/schema layer placeholders
-- Extension setup placeholder for future database integration
-- Basic centralized error handling
+This service provides core URL shortening functionality:
 
-Not implemented yet:
-- URL shortening business logic
-- Database models and persistence
-- Payload validation rules
-- Redirect behavior
+- Create, retrieve, update, and delete shortened URLs
+- Redirect short codes to their original destinations
+- Track access counts for each URL
+
+The system is designed with a layered architecture and emphasizes data integrity, predictable behavior under concurrency, and clear separation of concerns.
+
+---
+
+## Features
+
+1. **Globally unique short codes**: Ensures no collisions across all generated URLs
+
+2. **Compact short codes at scale**: Encodes up to ~1 billion URLs in ~6 characters, keeping links short and efficient
+
+3. **Efficient code generation**: Uses an atomic counter for fast, consistent creation under high concurrency
+
+4. **Custom aliases**: Supports user-defined short codes with validation and conflict handling
+
+5. **Redirects with access tracking**: Resolves short URLs to their original destination while incrementing access counts
+
+---
+
+## Architecture
+
+- **Routes (`routes.py`)** — HTTP layer (routing and response handling)
+- **Controller (`controller.py`)** — request orchestration
+- **Service (`service.py`)** — business logic and database interaction
+- **Schema (`schema.py`)** — input validation and normalization
+- **Model (`model.py`)** — SQLAlchemy ORM models
+
+---
+
+## Design Considerations
+
+### Short Code Generation
+
+- Short codes are generated using a Redis-backed atomic counter and Base62 encoding, guaranteeing uniqueness without collisions.
+- 1 billion unique IDs can be represented in ~6 characters, allowing the system to scale to large volumes while keeping URLs short and efficient.
+
+---
+
+## Tech Stack
+
+- **Backend:** Flask, Flask-SQLAlchemy
+- **Database:** PostgreSQL
+- **Caching / ID Generation:** Redis
+- **Migrations:** Alembic (Flask-Migrate)
+- **Testing & Linting:** Pytest, Ruff
+
+---
+
+## API Reference
+
+Base URL: `/api/v1`
+
+### Endpoints
+
+#### Create Short URL
+
+`POST /shorten`
+
+- **Request Body**
+
+```json
+{
+  "url": "https://example.com"
+}
+```
+
+- **Response (201)**
+
+```json
+{
+  "id": 1,
+  "url": "https://example.com",
+  "shortCode": "_aZ91k",
+  "createdAt": "2026-01-01T00:00:00Z",
+  "updatedAt": "2026-01-01T00:00:00Z"
+}
+```
+
+---
+
+#### Retrieve URL Metadata
+
+`GET /shorten/<shortCode>`
+
+- **Response (200)** — URL metadata
+- **Response (404)** — not found
+
+---
+
+#### Update Short URL
+
+`PUT /shorten/<shortCode>`
+
+- Updates destination URL and/or alias
+
+- **Response (200)** — updated resource
+
+- **Response (404)** — not found
+
+---
+
+#### Delete Short URL
+
+`DELETE /shorten/<shortCode>`
+
+- **Response (204)** — deleted
+- **Response (404)** — not found
+
+---
+
+#### Redirect
+
+`GET /shorten/<shortCode>/redirect`
+
+- Redirects to the original URL
+
+- Increments access count
+
+- **Response (302)** — redirect
+
+- **Response (404)** — not found
+
+---
+
+## Getting Started
+
+### 1. Install Dependencies
+
+```bash
+pip install -e ".[dev]"
+```
+
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+- `DATABASE_URL`
+- `REDIS_URL`
+- `SECRET_KEY`
+- `FLASK_ENV`
+
+---
+
+### 3. Run Migrations
+
+```bash
+flask db upgrade
+```
+
+---
+
+### 4. Start the Server
+
+```bash
+python run.py
+```
+
+---
+
+## Usage Example
+
+```bash
+curl -X POST http://localhost:5000/api/v1/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com"}'
+```
+
+---
 
 ## Project Structure
 
 ```text
 app/
-  __init__.py              # app factory
-  config.py                # environment configs
-  extensions.py            # db placeholder init
-
+  config.py
+  extensions.py
   api/
-    __init__.py
-    routes.py              # top-level API blueprint registration
-
+    routes.py
     url/
-      __init__.py
-      routes.py            # endpoint handler stubs
-      controller.py        # request/response orchestration placeholder
-      service.py           # business logic placeholder
-      model.py             # domain model placeholders
-      schema.py            # validation placeholder
-
+      controller.py
+      model.py
+      routes.py
+      schema.py
+      service.py
   core/
-    utils.py               # shared helpers placeholder
-    errors.py              # custom errors + handlers
-
-run.py                     # app entry point
-requirements.txt
+    errors.py
+    utils.py
+migrations/
+tests/
+run.py
+pyproject.toml
 .env.example
-README.md
 ```
-
-## Endpoints (Stubbed)
-
-All routes are mounted under `/api/v1` and currently return `501 Not Implemented`.
-
-- `POST /api/v1/shorten`
-- `GET /api/v1/shorten/<shortCode>`
-- `PUT /api/v1/shorten/<shortCode>`
-- `DELETE /api/v1/shorten/<shortCode>`
-- `GET /api/v1/shorten/<shortCode>/stats`
-
-## Local Setup
-
-1. Create a virtual environment and activate it.
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Copy environment template:
-   ```bash
-   cp .env.example .env
-   ```
-4. Run the app:
-   ```bash
-   python run.py
-   ```
-
-## Notes for Next Steps
-
-- Replace `app/extensions.py` placeholder with SQLAlchemy initialization.
-- Implement validation in `app/api/url/schema.py`.
-- Add business logic in `app/api/url/service.py`.
-- Wire controller to service and return concrete API payloads.
