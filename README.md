@@ -148,13 +148,6 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Required variables:
-
-- `DATABASE_URL`
-- `REDIS_URL`
-- `SECRET_KEY`
-- `FLASK_ENV`
-
 ---
 
 ### 3. Run Migrations

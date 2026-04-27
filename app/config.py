@@ -8,9 +8,7 @@ load_dotenv()
 class BaseConfig:
     DEBUG = False
     TESTING = False
-
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-
+    SECRET_KEY = os.getenv("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URL = os.getenv("REDIS_URL")
@@ -19,6 +17,16 @@ class BaseConfig:
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///dev.db")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+
+class TestingConfig(BaseConfig):
+    TESTING = True
+    SECRET_KEY = os.getenv("SECRET_KEY", "test-secret-key")
+    SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+    REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/1")
 
 
 class ProductionConfig(BaseConfig):
@@ -27,5 +35,6 @@ class ProductionConfig(BaseConfig):
 
 config_by_name = {
     "development": DevelopmentConfig,
+    "testing": TestingConfig,
     "production": ProductionConfig,
 }
