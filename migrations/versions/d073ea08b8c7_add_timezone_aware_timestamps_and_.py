@@ -24,12 +24,14 @@ def upgrade():
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
             existing_nullable=False,
         )
         batch_op.alter_column(
             "updated_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
             existing_nullable=False,
         )
 
@@ -43,12 +45,14 @@ def downgrade():
             "updated_at",
             existing_type=sa.DateTime(timezone=True),
             type_=postgresql.TIMESTAMP(),
+            server_default=None,
             existing_nullable=False,
         )
         batch_op.alter_column(
             "created_at",
             existing_type=sa.DateTime(timezone=True),
             type_=postgresql.TIMESTAMP(),
+            server_default=None,
             existing_nullable=False,
         )
 
