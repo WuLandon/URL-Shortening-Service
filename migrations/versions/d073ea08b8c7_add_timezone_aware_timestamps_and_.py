@@ -24,6 +24,7 @@ def upgrade():
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
+            postgresql_using="created_at AT TIME ZONE 'UTC'",
             server_default=sa.text("now()"),
             existing_nullable=False,
         )
@@ -31,6 +32,7 @@ def upgrade():
             "updated_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
+            postgresql_using="updated_at AT TIME ZONE 'UTC'",
             server_default=sa.text("now()"),
             existing_nullable=False,
         )
@@ -45,6 +47,7 @@ def downgrade():
             "updated_at",
             existing_type=sa.DateTime(timezone=True),
             type_=postgresql.TIMESTAMP(),
+            postgresql_using="updated_at AT TIME ZONE 'UTC'",
             server_default=None,
             existing_nullable=False,
         )
@@ -52,6 +55,7 @@ def downgrade():
             "created_at",
             existing_type=sa.DateTime(timezone=True),
             type_=postgresql.TIMESTAMP(),
+            postgresql_using="created_at AT TIME ZONE 'UTC'",
             server_default=None,
             existing_nullable=False,
         )
