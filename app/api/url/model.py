@@ -35,6 +35,9 @@ class URLMapping(db.Model):
 
 
 def _serialize_datetime(dt):
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
     return (
         dt.astimezone(timezone.utc)
         .replace(microsecond=0)
