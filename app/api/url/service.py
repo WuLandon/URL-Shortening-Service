@@ -51,9 +51,10 @@ def create_short_url(url, alias=None):
     try:
         db.session.add(url_mapping)
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        raise ConflictError(f"This alias '{short_code}' already exists.")
+        print(e.orig)
+        raise ConflictError("A database constraint was violated.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
@@ -87,8 +88,7 @@ def update_short_url(short_code, payload):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        conflicting_alias = payload.get("alias", url_mapping.short_code)
-        raise ConflictError(f"This alias '{conflicting_alias}' already exists.")
+        raise ConflictError("A database constraint was violated.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
