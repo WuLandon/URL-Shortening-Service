@@ -1,11 +1,11 @@
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX
+from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX, URL_CACHE_PREFIX
 from app.api.url.model import URLMapping
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.utils import encode_base62
-from app.extensions import db, redis_client
+from app.extensions import db, redis_cache_client, redis_counter_client
 
 
 def _ensure_alias_unique(alias, current_id=None):
@@ -28,16 +28,17 @@ def _ensure_alias_not_reserved(alias):
 
 def _generate_short_code():
     """Generate unique short code."""
-    count = redis_client.incr("global:url_counter")
+    count = redis_counter_client.incr("global:url_counter")
     short = f"{SHORT_CODE_PREFIX}{encode_base62(count)}"
     return short
 
 
+def _cache_key(short_code):
+    return f"{URL_CACHE_PREFIX}{short_code}"
+
+
 def create_short_url(url, alias=None):
     """Create and persist a shortened URL mapping."""
-    if redis_client is None:
-        raise RuntimeError("Redis client is not configured.")
-
     if alias is not None:
         _ensure_alias_not_reserved(alias)
         _ensure_alias_unique(alias)
@@ -71,6 +72,7 @@ def get_short_url(short_code):
 def update_short_url(short_code, payload):
     """Update the destination URL and/or alias for an existing short link."""
     url_mapping = get_short_url(short_code)
+    old_short_code = url_mapping.short_code
 
     if "url" in payload:
         url_mapping.url = payload["url"]
@@ -91,6 +93,9 @@ def update_short_url(short_code, payload):
         db.session.rollback()
         raise
 
+    redis_cache_client.delete(_cache_key(old_short_code))
+    redis_cache_client.delete(_cache_key(url_mapping.short_code))
+
     return url_mapping
 
 
@@ -105,15 +110,29 @@ def delete_short_url(short_code):
         db.session.rollback()
         raise
 
+    redis_cache_client.delete(_cache_key(short_code))
+
     return None
 
 
 def get_redirect_url(short_code):
     """Fetch original URL for redirect and increment access count."""
-    url_mapping = get_short_url(short_code)
+    cached_url = redis_cache_client.get(_cache_key(short_code))
 
+    if cached_url is not None:
+        _increment_access_count(short_code)
+        return cached_url
+
+    url = get_short_url(short_code).url
+    redis_cache_client.set(_cache_key(short_code), url)
+    _increment_access_count(short_code)
+
+    return url
+
+
+def _increment_access_count(short_code):
     try:
-        db.session.query(URLMapping).filter_by(id=url_mapping.id).update(
+        db.session.query(URLMapping).filter_by(short_code=short_code).update(
             {URLMapping.access_count: URLMapping.access_count + 1},
             synchronize_session=False,
         )
@@ -121,5 +140,3 @@ def get_redirect_url(short_code):
     except SQLAlchemyError:
         db.session.rollback()
         raise
-
-    return url_mapping.url

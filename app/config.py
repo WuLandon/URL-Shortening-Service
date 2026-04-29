@@ -12,6 +12,8 @@ class BaseConfig:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URL = os.getenv("REDIS_URL")
+    REDIS_COUNTER_URL = os.getenv("REDIS_COUNTER_URL") or REDIS_URL
+    REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL") or REDIS_URL
     JSON_SORT_KEYS = False
 
 
@@ -20,6 +22,8 @@ class DevelopmentConfig(BaseConfig):
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///dev.db")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_COUNTER_URL = os.getenv("REDIS_COUNTER_URL") or REDIS_URL
+    REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL") or REDIS_URL
 
 
 class TestingConfig(BaseConfig):
@@ -27,6 +31,16 @@ class TestingConfig(BaseConfig):
     SECRET_KEY = os.getenv("SECRET_KEY", "test-secret-key")
     SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
     REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/1")
+    REDIS_COUNTER_URL = (
+        os.getenv("REDIS_COUNTER_URL")
+        or os.getenv("TEST_REDIS_COUNTER_URL")
+        or REDIS_URL
+    )
+    REDIS_CACHE_URL = (
+        os.getenv("REDIS_CACHE_URL")
+        or os.getenv("TEST_REDIS_CACHE_URL")
+        or REDIS_URL
+    )
 
 
 class ProductionConfig(BaseConfig):

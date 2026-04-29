@@ -4,11 +4,12 @@ from redis import Redis
 
 
 class RedisClient:
-    def __init__(self):
+    def __init__(self, config_key):
         self._client = None
+        self._config_key = config_key
 
     def init_app(self, app):
-        redis_url = app.config.get("REDIS_URL")
+        redis_url = app.config.get(self._config_key)
         self._client = Redis.from_url(redis_url, decode_responses=True)
 
     def __getattr__(self, name):
@@ -21,10 +22,12 @@ class RedisClient:
 
 db = SQLAlchemy()
 migrate = Migrate()
-redis_client = RedisClient()
+redis_counter_client = RedisClient("REDIS_COUNTER_URL")
+redis_cache_client = RedisClient("REDIS_CACHE_URL")
 
 
 def init_extensions(app):
     db.init_app(app)
     migrate.init_app(app, db)
-    redis_client.init_app(app)
+    redis_counter_client.init_app(app)
+    redis_cache_client.init_app(app)
