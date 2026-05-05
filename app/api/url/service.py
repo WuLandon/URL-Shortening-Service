@@ -1,6 +1,5 @@
 import logging
 
-from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -138,27 +137,37 @@ def get_redirect_url(short_code):
         cached_url = None
 
     if cached_url is not None:
-        _increment_access_count(short_code)
+        updated_rows = _increment_access_count(short_code)
+        if updated_rows == 0:
+            _safe_cache_delete(short_code)
+            raise NotFoundError(f"Short code '{short_code}' was not found.")
         return cached_url
 
     url = get_short_url(short_code).url
     try:
-        ttl_seconds = current_app.config["REDIRECT_CACHE_TTL_SECONDS"]
-        redis_cache_client.setex(_cache_key(short_code), ttl_seconds, url)
+        redis_cache_client.set(_cache_key(short_code), url)
     except Exception:
         pass
-    _increment_access_count(short_code)
+    updated_rows = _increment_access_count(short_code)
+    if updated_rows == 0:
+        _safe_cache_delete(short_code)
+        raise NotFoundError(f"Short code '{short_code}' was not found.")
 
     return url
 
 
 def _increment_access_count(short_code):
     try:
-        db.session.query(URLMapping).filter_by(short_code=short_code).update(
-            {URLMapping.access_count: URLMapping.access_count + 1},
-            synchronize_session=False,
+        updated_rows = (
+            db.session.query(URLMapping)
+            .filter_by(short_code=short_code)
+            .update(
+                {URLMapping.access_count: URLMapping.access_count + 1},
+                synchronize_session=False,
+            )
         )
         db.session.commit()
+        return updated_rows
     except SQLAlchemyError:
         db.session.rollback()
         raise
