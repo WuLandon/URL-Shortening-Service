@@ -67,9 +67,8 @@ def create_short_url(url, alias=None):
     try:
         db.session.add(url_mapping)
         db.session.commit()
-    except IntegrityError as e:
+    except IntegrityError:
         db.session.rollback()
-        print(e.orig)
         raise ConflictError("A database constraint was violated.")
     except SQLAlchemyError:
         db.session.rollback()

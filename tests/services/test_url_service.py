@@ -173,7 +173,7 @@ def test_get_redirect_url_returns_db_url_when_cache_set_fails(db_session, monkey
     def raise_on_set(*args, **kwargs):
         raise RuntimeError("redis unavailable")
 
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.set", raise_on_set)
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.setex", raise_on_set)
 
     url = get_redirect_url("abc123")
 
