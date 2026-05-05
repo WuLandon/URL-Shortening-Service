@@ -37,6 +37,13 @@ def _cache_key(short_code):
     return f"{URL_CACHE_PREFIX}{short_code}"
 
 
+def _safe_cache_delete(short_code):
+    try:
+        redis_cache_client.delete(_cache_key(short_code))
+    except Exception:
+        pass
+
+
 def create_short_url(url, alias=None):
     """Create and persist a shortened URL mapping."""
     if alias is not None:
@@ -93,8 +100,8 @@ def update_short_url(short_code, payload):
         db.session.rollback()
         raise
 
-    redis_cache_client.delete(_cache_key(old_short_code))
-    redis_cache_client.delete(_cache_key(url_mapping.short_code))
+    _safe_cache_delete(old_short_code)
+    _safe_cache_delete(url_mapping.short_code)
 
     return url_mapping
 
@@ -110,21 +117,27 @@ def delete_short_url(short_code):
         db.session.rollback()
         raise
 
-    redis_cache_client.delete(_cache_key(short_code))
+    _safe_cache_delete(short_code)
 
     return None
 
 
 def get_redirect_url(short_code):
     """Fetch original URL for redirect and increment access count."""
-    cached_url = redis_cache_client.get(_cache_key(short_code))
+    try:
+        cached_url = redis_cache_client.get(_cache_key(short_code))
+    except Exception:
+        cached_url = None
 
     if cached_url is not None:
         _increment_access_count(short_code)
         return cached_url
 
     url = get_short_url(short_code).url
-    redis_cache_client.set(_cache_key(short_code), url)
+    try:
+        redis_cache_client.set(_cache_key(short_code), url)
+    except Exception:
+        pass
     _increment_access_count(short_code)
 
     return url

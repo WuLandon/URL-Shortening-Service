@@ -4,6 +4,7 @@ from app.api.url.model import URLMapping
 from app.api.url.service import (
     create_short_url,
     delete_short_url,
+    get_redirect_url,
     get_short_url,
     update_short_url,
 )
@@ -144,3 +145,36 @@ def test_delete_short_url_deletes_existing_mapping(db_session):
 def test_delete_short_url_raises_not_found_for_missing_code(db_session):
     with pytest.raises(NotFoundError):
         delete_short_url("missing")
+
+
+# ---------------------------------------------------------------------------
+# get_redirect_url tests
+# ---------------------------------------------------------------------------
+def test_get_redirect_url_falls_back_to_db_when_cache_get_fails(
+    db_session, monkeypatch
+):
+    create_short_url("https://example.com", alias="abc123")
+
+    def raise_on_get(*args, **kwargs):
+        raise RuntimeError("redis unavailable")
+
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", raise_on_get)
+
+    url = get_redirect_url("abc123")
+
+    assert url == "https://example.com"
+
+
+def test_get_redirect_url_returns_db_url_when_cache_set_fails(db_session, monkeypatch):
+    create_short_url("https://example.com", alias="abc123")
+
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", lambda *_: None)
+
+    def raise_on_set(*args, **kwargs):
+        raise RuntimeError("redis unavailable")
+
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.set", raise_on_set)
+
+    url = get_redirect_url("abc123")
+
+    assert url == "https://example.com"
