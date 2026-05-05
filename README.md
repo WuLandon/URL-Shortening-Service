@@ -11,64 +11,72 @@ This service provides core URL shortening functionality:
 - Redirect short codes to their original destinations
 - Track access counts for each URL
 
-The system is designed with a layered architecture and emphasizes data integrity, predictable behavior under concurrency, and clear separation of concerns.
+## System Goals
 
----
+- **Global Uniqueness**
+  - Each short code maps to exactly one URL
+
+- **Low-Latency Redirects**
+  - Target response time < 100ms
+
+- **High Availability**
+  - 99.99% uptime (availability > strict consistency)
+
+- **Scalability at Large Volume**
+  - Supports up to ~1B shortened URLs
+  - ~100M daily active users
+  - ~500M redirects/day (~5.8K/sec average)
+  - Handles peak traffic up to ~600K requests/second
 
 ## Features
 
-1. **Globally unique short codes**: Ensures no collisions across all generated URLs
+- **Short, Unique, Efficient Code Generation**
+  - Encodes up to ~1 billion URLs in ~6 characters, keeping links short and efficient
+  - Ensures no collisions across all generated URLs
+  - Uses an atomic counter for fast, consistent creation under high concurrency
 
-2. **Compact short codes at scale**: Encodes up to ~1 billion URLs in ~6 characters, keeping links short and efficient
+- **Fast Redirects with Access Tracking**
+  - Resolves short URLs to their original destination while incrementing access counts
 
-3. **Efficient code generation**: Uses an atomic counter for fast, consistent creation under high concurrency
-
-4. **Custom aliases**: Supports user-defined short codes with validation and conflict handling
-
-5. **Redirects with access tracking**: Resolves short URLs to their original destination while incrementing access counts
-
----
-
-## Architecture
-
-- **Routes (`routes.py`)** — HTTP layer (routing and response handling)
-- **Controller (`controller.py`)** — request orchestration
-- **Service (`service.py`)** — business logic and database interaction
-- **Schema (`schema.py`)** — input validation and normalization
-- **Model (`model.py`)** — SQLAlchemy ORM models
-
----
+- **Custom Aliases**
+  - Supports user-defined short codes with validation and conflict handling
 
 ## Design Considerations
 
-### Short Code Generation
+### Short, Unique, Efficient Code Generation
 
 - Short codes are generated using a Redis-backed atomic counter and Base62 encoding, guaranteeing uniqueness without collisions.
-- 1 billion unique IDs can be represented in ~6 characters, allowing the system to scale to large volumes while keeping URLs short and efficient.
+- ~1 billion unique IDs can be represented in ~6 characters, allowing the system to scale to large volumes while keeping URLs short and efficient.
 
----
+### Fast Redirects
 
-## Tech Stack
+- To ensure low-latency redirects, the system uses an in-memory cache (Redis) in front of the database
+- Cache-aside (read-through) pattern:
+  - Check cache for `shortCode → original URL`
+  - Cache Hit → return immediately
+  - Cache Miss → query database, then populate cache
 
-- **Backend:** Flask, Flask-SQLAlchemy
-- **Database:** PostgreSQL
-- **Caching / ID Generation:** Redis
-- **Migrations:** Alembic (Flask-Migrate)
-- **Testing & Linting:** Pytest, Ruff
-
----
+- LRU eviction policy:
+  - Keeps frequently accessed URLs in memory
+  - Automatically evicts less-used entries under memory pressure
 
 ## API Reference
 
-Base URL: `/api/v1`
+Base URL (local): `http://localhost:5000/api/v1`
 
 ### Endpoints
 
-#### Create Short URL
+| Method | Endpoint                        | Description                    |
+| ------ | ------------------------------- | ------------------------------ |
+| POST   | `/shorten`                      | Create a short URL             |
+| GET    | `/shorten/{shortCode}`          | Retrieve URL metadata          |
+| PUT    | `/shorten/{shortCode}`          | Update URL and/or alias        |
+| DELETE | `/shorten/{shortCode}`          | Delete a short URL             |
+| GET    | `/shorten/{shortCode}/redirect` | Redirect to original URL (302) |
 
-`POST /shorten`
+### Example: Create Short URL
 
-- **Request Body**
+**Request Body**
 
 ```json
 {
@@ -76,9 +84,9 @@ Base URL: `/api/v1`
 }
 ```
 
-- **Response (201)**
+**Response (201)**
 
-```json
+```
 {
   "id": 1,
   "url": "https://example.com",
@@ -88,83 +96,50 @@ Base URL: `/api/v1`
 }
 ```
 
----
-
-#### Retrieve URL Metadata
-
-`GET /shorten/<shortCode>`
-
-- **Response (200)** — URL metadata
-- **Response (404)** — not found
-
----
-
-#### Update Short URL
-
-`PUT /shorten/<shortCode>`
-
-- Updates destination URL and/or alias
-
-- **Response (200)** — updated resource
-
-- **Response (404)** — not found
-
----
-
-#### Delete Short URL
-
-`DELETE /shorten/<shortCode>`
-
-- **Response (204)** — deleted
-- **Response (404)** — not found
-
----
-
-#### Redirect
-
-`GET /shorten/<shortCode>/redirect`
-
-- Redirects to the original URL
-
-- Increments access count
-
-- **Response (302)** — redirect
-
-- **Response (404)** — not found
-
----
-
 ## Getting Started
 
-### 1. Install Dependencies
+### 1. Install Docker
 
-```bash
-pip install -e ".[dev]"
+Install Docker Desktop: https://www.docker.com/products/docker-desktop/
+
+Verify installation:
+
+```
+docker --version
+docker compose version
 ```
 
 ### 2. Configure Environment
+
+The default values are preconfigured for Docker. No modifications required.
 
 ```bash
 cp .env.example .env
 ```
 
----
-
-### 3. Run Migrations
+### 3. Start Services
 
 ```bash
-flask db upgrade
+docker compose up --build
 ```
 
----
+### 4. Access the Application
 
-### 4. Start the Server
+The API will be available at: [http://localhost:5000](http://localhost:5000)
+
+See the [API Reference](#api-reference) section for available endpoints.
+
+### 5. Stop Services
 
 ```bash
-python run.py
+docker compose down
 ```
 
----
+To reset all data (including database and Redis):
+
+```bash
+docker compose down -v
+```
 
 ## Usage Example
 
@@ -174,7 +149,21 @@ curl -X POST http://localhost:5000/api/v1/shorten \
   -d '{"url":"https://example.com"}'
 ```
 
----
+## Tech Stack
+
+- **Backend:** Flask, Flask-SQLAlchemy
+- **Database:** PostgreSQL
+- **Caching / Short Code Generation:** Redis
+- **Migrations:** Alembic (Flask-Migrate)
+- **Testing & Linting:** Pytest, Ruff
+
+## Architecture
+
+- **Routes (`routes.py`)** — HTTP layer (routing and response handling)
+- **Controller (`controller.py`)** — request orchestration
+- **Service (`service.py`)** — business logic and database interaction
+- **Schema (`schema.py`)** — input validation and normalization
+- **Model (`model.py`)** — SQLAlchemy ORM models
 
 ## Project Structure
 

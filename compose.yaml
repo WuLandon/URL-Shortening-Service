@@ -1,0 +1,59 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-counter:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    command: sh -c "flask --app run.py db upgrade && flask --app run.py run --host=0.0.0.0 --port=5000"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: url_shortener
+      POSTGRES_USER: url_app
+      POSTGRES_PASSWORD: url_app_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U url_app -d url_shortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-counter:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - redis-counter-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-cache:
+    image: redis:7
+    ports:
+      - "6380:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  redis-counter-data:

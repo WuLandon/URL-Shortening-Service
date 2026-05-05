@@ -18,6 +18,10 @@ ENV/
 instance/
 dump.rdb
 
+# Redis persistence files
+*.rdb
+appendonly.aof*
+
 # Packaging / build artifacts
 build/
 dist/

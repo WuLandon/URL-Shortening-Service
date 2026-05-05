@@ -1,11 +1,15 @@
+import logging
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX
+from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX, URL_CACHE_PREFIX
 from app.api.url.model import URLMapping
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.utils import encode_base62
-from app.extensions import db, redis_client
+from app.extensions import db, redis_cache_client, redis_counter_client
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_alias_unique(alias, current_id=None):
@@ -28,16 +32,28 @@ def _ensure_alias_not_reserved(alias):
 
 def _generate_short_code():
     """Generate unique short code."""
-    count = redis_client.incr("global:url_counter")
+    count = redis_counter_client.incr("global:url_counter")
     short = f"{SHORT_CODE_PREFIX}{encode_base62(count)}"
     return short
 
 
+def _cache_key(short_code):
+    return f"{URL_CACHE_PREFIX}{short_code}"
+
+
+def _safe_cache_delete(short_code):
+    try:
+        redis_cache_client.delete(_cache_key(short_code))
+    except Exception:
+        logger.warning(
+            "Cache delete failed for short_code=%s",
+            short_code,
+            exc_info=True,
+        )
+
+
 def create_short_url(url, alias=None):
     """Create and persist a shortened URL mapping."""
-    if redis_client is None:
-        raise RuntimeError("Redis client is not configured.")
-
     if alias is not None:
         _ensure_alias_not_reserved(alias)
         _ensure_alias_unique(alias)
@@ -52,7 +68,7 @@ def create_short_url(url, alias=None):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        raise ConflictError(f"This alias '{short_code}' already exists.")
+        raise ConflictError("A database constraint was violated.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
@@ -71,6 +87,7 @@ def get_short_url(short_code):
 def update_short_url(short_code, payload):
     """Update the destination URL and/or alias for an existing short link."""
     url_mapping = get_short_url(short_code)
+    old_short_code = url_mapping.short_code
 
     if "url" in payload:
         url_mapping.url = payload["url"]
@@ -85,11 +102,13 @@ def update_short_url(short_code, payload):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        conflicting_alias = payload.get("alias", url_mapping.short_code)
-        raise ConflictError(f"This alias '{conflicting_alias}' already exists.")
+        raise ConflictError("A database constraint was violated.")
     except SQLAlchemyError:
         db.session.rollback()
         raise
+
+    _safe_cache_delete(old_short_code)
+    _safe_cache_delete(url_mapping.short_code)
 
     return url_mapping
 
@@ -105,21 +124,50 @@ def delete_short_url(short_code):
         db.session.rollback()
         raise
 
+    _safe_cache_delete(short_code)
+
     return None
 
 
 def get_redirect_url(short_code):
     """Fetch original URL for redirect and increment access count."""
-    url_mapping = get_short_url(short_code)
-
     try:
-        db.session.query(URLMapping).filter_by(id=url_mapping.id).update(
-            {URLMapping.access_count: URLMapping.access_count + 1},
-            synchronize_session=False,
+        cached_url = redis_cache_client.get(_cache_key(short_code))
+    except Exception:
+        cached_url = None
+
+    if cached_url is not None:
+        updated_rows = _increment_access_count(short_code)
+        if updated_rows == 0:
+            _safe_cache_delete(short_code)
+            raise NotFoundError(f"Short code '{short_code}' was not found.")
+        return cached_url
+
+    url = get_short_url(short_code).url
+    try:
+        redis_cache_client.set(_cache_key(short_code), url)
+    except Exception:
+        pass
+    updated_rows = _increment_access_count(short_code)
+    if updated_rows == 0:
+        _safe_cache_delete(short_code)
+        raise NotFoundError(f"Short code '{short_code}' was not found.")
+
+    return url
+
+
+def _increment_access_count(short_code):
+    try:
+        updated_rows = (
+            db.session.query(URLMapping)
+            .filter_by(short_code=short_code)
+            .update(
+                {URLMapping.access_count: URLMapping.access_count + 1},
+                synchronize_session=False,
+            )
         )
         db.session.commit()
+        return updated_rows
     except SQLAlchemyError:
         db.session.rollback()
         raise
-
-    return url_mapping.url
