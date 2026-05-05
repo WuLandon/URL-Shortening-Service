@@ -1,3 +1,6 @@
+import logging
+
+from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -6,6 +9,8 @@ from app.api.url.model import URLMapping
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.utils import encode_base62
 from app.extensions import db, redis_cache_client, redis_counter_client
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_alias_unique(alias, current_id=None):
@@ -41,7 +46,11 @@ def _safe_cache_delete(short_code):
     try:
         redis_cache_client.delete(_cache_key(short_code))
     except Exception:
-        pass
+        logger.warning(
+            "Cache delete failed for short_code=%s",
+            short_code,
+            exc_info=True,
+        )
 
 
 def create_short_url(url, alias=None):
@@ -135,7 +144,8 @@ def get_redirect_url(short_code):
 
     url = get_short_url(short_code).url
     try:
-        redis_cache_client.set(_cache_key(short_code), url)
+        ttl_seconds = current_app.config["REDIRECT_CACHE_TTL_SECONDS"]
+        redis_cache_client.setex(_cache_key(short_code), ttl_seconds, url)
     except Exception:
         pass
     _increment_access_count(short_code)

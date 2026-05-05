@@ -13,6 +13,7 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_COUNTER_URL = os.getenv("REDIS_COUNTER_URL")
     REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL")
+    REDIRECT_CACHE_TTL_SECONDS = int(os.getenv("REDIRECT_CACHE_TTL_SECONDS", "300"))
     JSON_SORT_KEYS = False
 
 
@@ -20,8 +21,8 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///dev.db")
-    REDIS_COUNTER_URL = os.getenv("REDIS_COUNTER_URL")
-    REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL")
+    REDIS_COUNTER_URL = os.getenv("REDIS_COUNTER_URL", "redis://localhost:6379/0")
+    REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
 
 
 class TestingConfig(BaseConfig):

@@ -178,3 +178,23 @@ def test_get_redirect_url_returns_db_url_when_cache_set_fails(db_session, monkey
     url = get_redirect_url("abc123")
 
     assert url == "https://example.com"
+
+
+def test_get_redirect_url_caches_with_configured_ttl(db_session, monkeypatch, app):
+    create_short_url("https://example.com", alias="abc123")
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", lambda *_: None)
+
+    calls = []
+
+    def capture_setex(key, ttl, value):
+        calls.append((key, ttl, value))
+
+    monkeypatch.setattr("app.api.url.service.redis_cache_client.setex", capture_setex)
+
+    with app.app_context():
+        app.config["REDIRECT_CACHE_TTL_SECONDS"] = 300
+        url = get_redirect_url("abc123")
+
+    assert url == "https://example.com"
+    assert len(calls) == 1
+    assert calls[0][1] == 300
