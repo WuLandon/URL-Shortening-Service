@@ -183,22 +183,32 @@ curl -X POST http://localhost:5000/api/v1/shorten \
 
 ```text
 app/
+  __init__.py
   config.py
   extensions.py
   api/
+    __init__.py
     routes.py
     url/
+      __init__.py
+      constants.py
       controller.py
       model.py
       routes.py
       schema.py
       service.py
   core/
+    __init__.py
     errors.py
-    utils.py
 migrations/
+  versions/
 tests/
+  api/
+  services/
+  conftest.py
 run.py
 pyproject.toml
 .env.example
+Dockerfile
+compose.yaml
 ```

@@ -158,7 +158,7 @@ def test_get_redirect_url_falls_back_to_db_when_cache_get_fails(
     def raise_on_get(*args, **kwargs):
         raise RuntimeError("redis unavailable")
 
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", raise_on_get)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.get", raise_on_get)
 
     url = get_redirect_url("abc123")
 
@@ -168,12 +168,12 @@ def test_get_redirect_url_falls_back_to_db_when_cache_get_fails(
 def test_get_redirect_url_returns_db_url_when_cache_set_fails(db_session, monkeypatch):
     create_short_url("https://example.com", alias="abc123")
 
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", lambda *_: None)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.get", lambda *_: None)
 
     def raise_on_set(*args, **kwargs):
         raise RuntimeError("redis unavailable")
 
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.set", raise_on_set)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.set", raise_on_set)
 
     url = get_redirect_url("abc123")
 
@@ -182,14 +182,14 @@ def test_get_redirect_url_returns_db_url_when_cache_set_fails(db_session, monkey
 
 def test_get_redirect_url_caches_url_on_miss(db_session, monkeypatch):
     create_short_url("https://example.com", alias="abc123")
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", lambda *_: None)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.get", lambda *_: None)
 
     calls = []
 
     def capture_set(key, value):
         calls.append((key, value))
 
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.set", capture_set)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.set", capture_set)
 
     url = get_redirect_url("abc123")
 
@@ -202,12 +202,12 @@ def test_get_redirect_url_cache_hit_raises_not_found_when_row_missing(
     db_session, monkeypatch
 ):
     monkeypatch.setattr(
-        "app.api.url.service.redis_cache_client.get", lambda *_: "https://stale.com"
+        "app.api.url.service_helpers.redis_cache_client.get", lambda *_: "https://stale.com"
     )
 
     deleted_keys = []
     monkeypatch.setattr(
-        "app.api.url.service.redis_cache_client.delete",
+        "app.api.url.service_helpers.redis_cache_client.delete",
         lambda key: deleted_keys.append(key),
     )
 
@@ -221,13 +221,13 @@ def test_get_redirect_url_miss_path_raises_not_found_when_row_deleted_before_inc
     db_session, monkeypatch
 ):
     create_short_url("https://example.com", alias="abc123")
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.get", lambda *_: None)
-    monkeypatch.setattr("app.api.url.service.redis_cache_client.set", lambda *_: None)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.get", lambda *_: None)
+    monkeypatch.setattr("app.api.url.service_helpers.redis_cache_client.set", lambda *_: None)
 
     call_count = {"n": 0}
 
     original_increment = __import__(
-        "app.api.url.service", fromlist=["_increment_access_count"]
+        "app.api.url.service_helpers", fromlist=["_increment_access_count"]
     )._increment_access_count
 
     def deleting_increment(short_code):

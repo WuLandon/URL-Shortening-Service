@@ -24,6 +24,20 @@ class URLMapping(db.Model):
     access_count = db.Column(db.Integer, nullable=False, default=0)
 
     def to_dict(self):
+        """
+        Serialize URL mapping into API response format.
+
+        Returns:
+            dict: URL mapping representation:
+                {
+                    "id": int,
+                    "url": str,
+                    "shortCode": str,
+                    "createdAt": str,   # ISO 8601 UTC timestamp
+                    "updatedAt": str,   # ISO 8601 UTC timestamp
+                    "accessCount": int,
+                }
+        """
         return {
             "id": self.id,
             "url": self.url,

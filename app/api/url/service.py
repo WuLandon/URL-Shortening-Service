@@ -1,59 +1,20 @@
-import logging
-
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.url.constants import RESERVED_ALIASES, SHORT_CODE_PREFIX, URL_CACHE_PREFIX
 from app.api.url.model import URLMapping
-from app.core.errors import ConflictError, NotFoundError, ValidationError
-from app.core.utils import encode_base62
-from app.extensions import db, redis_cache_client, redis_counter_client
-
-logger = logging.getLogger(__name__)
-
-
-def _ensure_alias_unique(alias, current_id=None):
-    """Alias must be unique, except for the record currently being updated."""
-    existing = URLMapping.query.filter(
-        func.lower(URLMapping.short_code) == alias.lower()
-    ).first()
-
-    if existing is not None and existing.id != current_id:
-        raise ConflictError(f"This alias '{alias}' already exists.")
-
-
-def _ensure_alias_not_reserved(alias):
-    """Raise if alias conflicts with reserved keywords."""
-    if alias.lower() in RESERVED_ALIASES:
-        raise ValidationError(
-            f"'{alias}' is a reserved keyword and cannot be used as an alias."
-        )
-
-
-def _generate_short_code():
-    """Generate unique short code."""
-    count = redis_counter_client.incr("global:url_counter")
-    short = f"{SHORT_CODE_PREFIX}{encode_base62(count)}"
-    return short
-
-
-def _cache_key(short_code):
-    return f"{URL_CACHE_PREFIX}{short_code}"
-
-
-def _safe_cache_delete(short_code):
-    try:
-        redis_cache_client.delete(_cache_key(short_code))
-    except Exception:
-        logger.warning(
-            "Cache delete failed for short_code=%s",
-            short_code,
-            exc_info=True,
-        )
+from app.api.url.service_helpers import (
+    _cache_key,
+    _ensure_alias_not_reserved,
+    _ensure_alias_unique,
+    _generate_short_code,
+    _increment_access_count,
+    _safe_cache_delete,
+)
+from app.core.errors import ConflictError, NotFoundError
+from app.extensions import db, redis_cache_client
 
 
 def create_short_url(url, alias=None):
-    """Create and persist a shortened URL mapping."""
+    """Create, persist, and return a new URLMapping model instance."""
     if alias is not None:
         _ensure_alias_not_reserved(alias)
         _ensure_alias_unique(alias)
@@ -77,7 +38,7 @@ def create_short_url(url, alias=None):
 
 
 def get_short_url(short_code):
-    """Fetch a shortened URL entity."""
+    """Return the URLMapping for `short_code` or raise NotFoundError."""
     url_mapping = URLMapping.query.filter_by(short_code=short_code).first()
     if url_mapping is None:
         raise NotFoundError(f"Short code '{short_code}' was not found.")
@@ -85,7 +46,7 @@ def get_short_url(short_code):
 
 
 def update_short_url(short_code, payload):
-    """Update the destination URL and/or alias for an existing short link."""
+    """Update an existing URLMapping and return the updated model instance."""
     url_mapping = get_short_url(short_code)
     old_short_code = url_mapping.short_code
 
@@ -114,7 +75,7 @@ def update_short_url(short_code, payload):
 
 
 def delete_short_url(short_code):
-    """Delete a shortened URL entity."""
+    """Delete the URLMapping for `short_code` and invalidate related cache entries."""
     url_mapping = get_short_url(short_code)
 
     try:
@@ -130,7 +91,7 @@ def delete_short_url(short_code):
 
 
 def get_redirect_url(short_code):
-    """Fetch original URL for redirect and increment access count."""
+    """Resolve `short_code`, increment access statistics, and return the target URL."""
     try:
         cached_url = redis_cache_client.get(_cache_key(short_code))
     except Exception:
@@ -154,20 +115,3 @@ def get_redirect_url(short_code):
         raise NotFoundError(f"Short code '{short_code}' was not found.")
 
     return url
-
-
-def _increment_access_count(short_code):
-    try:
-        updated_rows = (
-            db.session.query(URLMapping)
-            .filter_by(short_code=short_code)
-            .update(
-                {URLMapping.access_count: URLMapping.access_count + 1},
-                synchronize_session=False,
-            )
-        )
-        db.session.commit()
-        return updated_rows
-    except SQLAlchemyError:
-        db.session.rollback()
-        raise
