@@ -1,64 +1,69 @@
 # URL Shortening Service
 
-A RESTful API for creating, managing, and resolving shortened URLs.
-Built with Flask, PostgreSQL, and Redis, the service focuses on correctness, validation, and consistency under concurrent access.
+A scalable URL shortening service built with Flask, PostgreSQL, and Redis.
+
+The system supports short URL generation, custom aliases, fast redirects, and access tracking while emphasizing correctness, low-latency reads, and consistency under concurrent access.
 
 ## Overview
 
-This service provides core URL shortening functionality:
+This service provides a RESTful API for:
 
-- Create, retrieve, update, and delete shortened URLs
-- Redirect short codes to their original destinations
-- Track access counts for each URL
+- Creating, retrieving, updating, and deleting shortened URLs
+- Redirecting short URLs to their original destinations
+- Tracking URL access counts
+
+The system is designed for high read throughput and scalable URL generation using Redis-backed caching and Base62-encoded short codes.
 
 ## System Goals
+
+Note: Latency, availability, and throughput numbers below are target service level objectives and are not benchmarked or production-validated in this repository.
 
 - **Global Uniqueness**
   - Each short code maps to exactly one URL
 
 - **Low-Latency Redirects**
-  - Target response time < 100ms
+  - Target response time: < 100ms for redirect requests
 
 - **High Availability**
-  - 99.99% uptime (availability > strict consistency)
+  - Target availability: 99.99% uptime
+  - Availability-first behavior via cache fallback and graceful degradation
 
 - **Scalability at Large Volume**
-  - Supports up to ~1B shortened URLs
-  - ~100M daily active users
-  - ~500M redirects/day (~5.8K/sec average)
-  - Handles peak traffic up to ~600K requests/second
+  - Capacity target: up to ~1B shortened URLs
+  - Traffic target: ~500M redirects/day (~5.8K/sec average)
+  - Peak target: up to ~600K requests/second
 
 ## Features
 
-- **Short, Unique, Efficient Code Generation**
-  - Encodes up to ~1 billion URLs in ~6 characters, keeping links short and efficient
-  - Ensures no collisions across all generated URLs
-  - Uses an atomic counter for fast, consistent creation under high concurrency
+- **Short, Unique, Efficient URL Generation**
+  - Encodes up to ~1 billion URLs in ~6 characters, keeping generated URLs short and efficient
+  - Ensures no collisions across all generated short URLs
+  - Uses an atomic counter for fast, unique, and consistent short code creation under high concurrency
 
 - **Fast Redirects with Access Tracking**
-  - Resolves short URLs to their original destination while incrementing access counts
+  - Short URLs resolve to their original destination URLs
+  - URL access count increments with each visit
 
-- **Custom Aliases**
+- **Optional Custom Aliases**
   - Supports user-defined short codes with validation and conflict handling
 
 ## Design Considerations
 
-### Short, Unique, Efficient Code Generation
+### Short, Unique, Efficient URL Generation
 
-- Short codes are generated using a Redis-backed atomic counter and Base62 encoding, guaranteeing uniqueness without collisions.
-- ~1 billion unique IDs can be represented in ~6 characters, allowing the system to scale to large volumes while keeping URLs short and efficient.
+- Auto-generated short codes use a Redis-backed atomic counter and Base62 encoding, ensuring unique generated values without collisions.
+- ~1 billion unique generated IDs can be represented in ~6 Base62 characters, allowing the system to scale to large volumes while keeping URLs short and efficient.
+- Custom aliases are user-provided, validated, and enforced as unique.
 
 ### Fast Redirects
 
-- To ensure low-latency redirects, the system uses an in-memory cache (Redis) in front of the database
-- Cache-aside (read-through) pattern:
-  - Check cache for `shortCode → original URL`
-  - Cache Hit → return immediately
-  - Cache Miss → query database, then populate cache
+To support low-latency redirects at high read volume, the system uses Redis as an in-memory cache in front of the database.
 
-- LRU eviction policy:
-  - Keeps frequently accessed URLs in memory
-  - Automatically evicts less-used entries under memory pressure
+- Uses a cache-aside (read-through) pattern for `shortCode → original URL` lookups
+- Frequently accessed URLs remain cached in memory using an LRU eviction policy
+- Cache hits avoid database reads, reducing load on the primary database under heavy redirect traffic
+- Redirect requests still perform database writes for access count tracking
+- **Future optimization**: decouple access counting from the redirect path using buffered/asynchronous counter aggregation
 
 ## API Reference
 
@@ -74,6 +79,14 @@ Base URL (local): `http://localhost:5000/api/v1`
 | DELETE | `/shorten/{shortCode}`          | Delete a short URL             |
 | GET    | `/shorten/{shortCode}/redirect` | Redirect to original URL (302) |
 
+### Alias Rules
+
+- Aliases are normalized to lowercase
+- Allowed characters: `a-z`, `0-9`, `_`, `-`
+- Maximum length: 16 characters
+- Aliases cannot start with `_`
+- Reserved aliases are rejected: `api`, `shorten`, `redirect`, `admin`, `health`
+
 ### Example: Create Short URL
 
 **Request Body**
@@ -86,13 +99,14 @@ Base URL (local): `http://localhost:5000/api/v1`
 
 **Response (201)**
 
-```
+```json
 {
   "id": 1,
   "url": "https://example.com",
   "shortCode": "_aZ91k",
   "createdAt": "2026-01-01T00:00:00Z",
-  "updatedAt": "2026-01-01T00:00:00Z"
+  "updatedAt": "2026-01-01T00:00:00Z",
+  "accessCount": 0
 }
 ```
 
@@ -104,7 +118,7 @@ Install Docker Desktop: https://www.docker.com/products/docker-desktop/
 
 Verify installation:
 
-```
+```bash
 docker --version
 docker compose version
 ```
