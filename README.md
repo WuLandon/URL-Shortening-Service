@@ -60,7 +60,7 @@ Note: The metrics and scaling targets below are architectural design targets and
 
 To support low-latency redirects at high read volume, the system uses Redis as an in-memory cache in front of the database.
 
-- Uses a cache-aside (read-through) pattern for `shortCode → original URL` lookups
+- Uses a cache-aside pattern for `shortCode → original URL` lookups
 - Frequently accessed URLs remain cached in memory using an LRU eviction policy
 - Cache hits avoid database reads, reducing load on the primary database under heavy redirect traffic
 - Redirect requests still perform database writes for access count tracking, incurring database write latency
