@@ -1,6 +1,6 @@
 # URL Shortening Service
 
-A scalable URL shortening service built with Flask, PostgreSQL, and Redis.
+A scalable URL shortening service built with a modular Flask architecture and backed by PostgreSQL and Redis.
 
 The system supports short URL generation, custom aliases, fast redirects, and access tracking while emphasizing correctness, low-latency reads, and consistency under concurrent access.
 
@@ -12,26 +12,27 @@ This service provides a RESTful API for:
 - Redirecting short URLs to their original destinations
 - Tracking URL access counts
 
-The system is designed for high read throughput and scalable URL generation using Redis-backed caching and Base62-encoded short codes.
+The system is designed for:
+
+- High read throughput
+- Scalable URL generation
+
+The repository intentionally focuses on implementing the core architecture while documenting how the system could evolve to support significantly larger workloads.
 
 ## System Goals
 
-Note: Latency, availability, and throughput numbers below are target service level objectives and are not benchmarked or production-validated in this repository.
-
-- **Global Uniqueness**
-  - Each short code maps to exactly one URL
+Note: The metrics and scaling targets below are architectural design targets and service-level objectives, not benchmarked or production-validated guarantees of the current implementation.
 
 - **Low-Latency Redirects**
-  - Target response time: < 100ms for redirect requests
+  - Target response time: <100ms for redirect requests
 
 - **High Availability**
-  - Target availability: 99.99% uptime
-  - Availability-first behavior via cache fallback and graceful degradation
+  - Design target: 99.99% uptime in a future replicated/failover deployment architecture
 
 - **Scalability at Large Volume**
-  - Capacity target: up to ~1B shortened URLs
-  - Traffic target: ~500M redirects/day (~5.8K/sec average)
-  - Peak target: up to ~600K requests/second
+  - Projected capacity target: up to ~1B shortened URLs
+  - Projected traffic target: ~500M redirects/day (~5.8K/sec average)
+  - Projected peak throughput target: up to ~600K requests/second
 
 ## Features
 
@@ -62,8 +63,21 @@ To support low-latency redirects at high read volume, the system uses Redis as a
 - Uses a cache-aside (read-through) pattern for `shortCode → original URL` lookups
 - Frequently accessed URLs remain cached in memory using an LRU eviction policy
 - Cache hits avoid database reads, reducing load on the primary database under heavy redirect traffic
-- Redirect requests still perform database writes for access count tracking
-- **Future optimization**: decouple access counting from the redirect path using buffered/asynchronous counter aggregation
+- Redirect requests still perform database writes for access count tracking, incurring database write latency
+
+**Future optimization**: decouple access counting from the redirect path using buffered/asynchronous counter aggregation
+
+### Future Scaling Considerations
+
+The current implementation intentionally favors architectural simplicity while preserving a clear path toward larger-scale distributed deployment patterns.
+
+At significantly larger scale, the system could evolve using strategies such as:
+
+- Introducing a microservice architecture with independently scalable read and write services
+- Horizontally scaling multiple service instances behind a load balancer
+- Using database replication and failover for higher availability
+- Using Redis counter batching to reduce network overhead during short code generation
+- Allocating disjoint counter ranges across regions for multi-region deployments
 
 ## API Reference
 
